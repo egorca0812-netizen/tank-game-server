@@ -176,12 +176,12 @@ function dmg(o,d,src,txt){
  if(o.hp<=0)return;d*=o.ar;if(o.p&&up.arm)d*=.75;if(src&&src.p&&up.gun)d*=1.15;o.hp-=d;
  if(o.p){flash=1;$('flash').style.opacity=1}else if(src&&src.p)msg(txt||'-'+Math.round(d));
  if(o.hp<=0){o.mesh.body.color.set(0x242424);boom(o.x,o.z,5);if(src&&src.mesh)src.kills=(src.kills||0)+1;if(src&&src.p){money=Math.min(9000,money+300);addXp(PF.sel,10)}}}
-function wallHit(x,z,r){for(const w of WALLS){const cx=cl(x,w[0]-w[2]/2,w[0]+w[2]/2),cz=cl(z,w[1]-w[3]/2,w[1]+w[3]/2);if(Math.hypot(x-cx,z-cz)<r)return 1}return 0}
+function wallHit(x,z,r){for(const w of WALLS){if(Math.abs(x-w[0])>w[2]/2+r||Math.abs(z-w[1])>w[3]/2+r)continue;const cx=cl(x,w[0]-w[2]/2,w[0]+w[2]/2),cz=cl(z,w[1]-w[3]/2,w[1]+w[3]/2);if(Math.hypot(x-cx,z-cz)<r)return 1}return 0}
 function move(t,vx,vz,dt,sp){const d=Math.hypot(vx,vz);if(d<.1)return;
  t.h+=cl(nd(Math.atan2(vx,vz)-t.h),-2.8*dt,2.8*dt);
  const nx=t.x+vx/d*sp*dt,nz=t.z+vz/d*sp*dt;if(!wallHit(nx,t.z,1.9))t.x=nx;if(!wallHit(t.x,nz,1.9))t.z=nz;
  ts.forEach(o=>{if(o!==t&&o.hp>0){const dd=Math.hypot(o.x-t.x,o.z-t.z);if(dd<3.6&&dd>0){t.x+=(t.x-o.x)/dd*(3.6-dd)*.5;t.z+=(t.z-o.z)/dd*(3.6-dd)*.5}}});
- for(const w of WALLS){const cx=cl(t.x,w[0]-w[2]/2,w[0]+w[2]/2),cz=cl(t.z,w[1]-w[3]/2,w[1]+w[3]/2),d=Math.hypot(t.x-cx,t.z-cz);if(d<1.9){if(d>.001){t.x+=(t.x-cx)/d*(1.9-d);t.z+=(t.z-cz)/d*(1.9-d)}else{t.x=w[0]+(t.x<w[0]?-1:1)*(w[2]/2+2.4)}}}
+ for(const w of WALLS){if(Math.abs(t.x-w[0])>w[2]/2+1.9||Math.abs(t.z-w[1])>w[3]/2+1.9)continue;const cx=cl(t.x,w[0]-w[2]/2,w[0]+w[2]/2),cz=cl(t.z,w[1]-w[3]/2,w[1]+w[3]/2),d=Math.hypot(t.x-cx,t.z-cz);if(d<1.9){if(d>.001){t.x+=(t.x-cx)/d*(1.9-d);t.z+=(t.z-cz)/d*(1.9-d)}else{t.x=w[0]+(t.x<w[0]?-1:1)*(w[2]/2+2.4)}}}
  t.x=cl(t.x,-79,79);t.z=cl(t.z,-79,79)}
 function blast(s,x,z){boom(x,z,6);BLD.forEach(b=>{if(b.t!==s.t&&Math.hypot(b.rect[0]-x,b.rect[1]-z)<(s.rad||7)+3)b.hp-=70*(s.k||1)});PROPS.forEach(b=>{if(b.hp>0&&Math.hypot(b.x-x,b.z-z)<(s.rad||7)+2)b.hp-=90*(s.k||1)});ts.forEach(o=>{if(o.t!==s.t&&o.hp>0&&Math.hypot(o.x-x,o.z-z)<(s.rad||7))dmg(o,(s.bd||55)*s.k,s.o)})}
 let spI=0,cp=.14,zm=11;
@@ -253,6 +253,7 @@ function tick(now){
    setTimeout(()=>{if(NET)return netEnd(win,fin);if(fin){ov('<h2>'+(score[0]>=3?'Победа в матче':'Матч проигран')+'</h2><div>Итог '+score[0]+' : '+score[1]+'</div><button id="rs">Новый матч</button>');$('rs').onclick=()=>{score=[0,0];money=1600;up={arm:0,spd:0,he:0,apcr:0,hp:0,rl:0,gun:0,rep:0};buy()}}
     else{ov('<h2>'+(MODE==='ffa'?(win?'Ты победил в раунде!':'Раунд проигран'):(win?'Раунд за КТ':'Раунд за Т'))+'</h2><div>Награда $'+bn+'</div><button id="nx">К закупке</button>');$('nx').onclick=buy}},1200)}
  }else if(st!=='play'&&st!=='pause')cy+=dt*.15;
+ if(HL){parts.length=0;capTick(dt);netHostTick();requestAnimationFrame(tick);return}
  parts.forEach(q=>{q.l-=dt;q.p.position.x+=q.vx*dt;q.p.position.y+=q.vy*dt;q.p.position.z+=q.vz*dt;const k=q.l/q.L,s=q.s*(1+(1-k)*q.gro);q.p.scale.set(s,s,1);q.p.material.opacity=Math.max(0,k);if(q.l<=0){sc.remove(q.p);q.p.material.dispose()}});
  parts=parts.filter(q=>q.l>0);
  ts.forEach(t=>{const r=t.mesh;if(t.px===undefined){t.px=t.x;t.pz=t.z;t.ph=t.h;t.tl=0;t.tr=0}
@@ -561,13 +562,13 @@ document.addEventListener('fullscreenchange',()=>setTimeout(rsz,120));document.a
 addEventListener('keydown',e=>{if(e.code==='Enter'&&TUT&&st==='play')menuNew2()});
 applyMode();
 applyLang();
-const HL=window.HEADLESS||null;
+const HL=window.HEADLESS||null,DEF_SRV='wss://tank-game-server-re3j.onrender.com';
 let WS=null,NET=null,NC=false,EV=[],MPL=[],MPT=null;
 const SP0=[[-18,-69],[4.5,-69],[-22,-60],[10,-60],[-24,-72],[-3,-57]],SP1=[[2,66],[-13.5,70.5],[18,70.5],[-22.5,63],[27,63],[-27,68]];
 [['Основной сервер','Main server']].forEach(a=>DIC.push(a));DIC.sort((a,b)=>b[0].length-a[0].length);
 function mpName(){return PF.name||(PF.name='Игрок'+(100+Math.random()*900|0))}
 function netSend(m){if(window.__send)return window.__send(m);if(WS&&WS.readyState===1)WS.send(JSON.stringify(m))}
-function mpOpen(ok,bad){if(WS&&WS.readyState===1){ok();return}try{const w=new WebSocket(PF.srv);WS=w;w.onopen=ok;w.onerror=()=>{if(bad)bad()};w.onclose=()=>{if(WS===w){WS=null;if(NET)netLeave(T2('Соединение потеряно','Connection lost'))}};w.onmessage=e=>{try{netMsg(JSON.parse(e.data))}catch(x){}}}catch(x){if(bad)bad()}}
+function mpOpen(ok,bad){if(WS&&WS.readyState===1){ok();return}try{const w=new WebSocket(PF.srv||DEF_SRV);WS=w;w.onopen=ok;w.onerror=()=>{if(bad)bad()};w.onclose=()=>{if(WS===w){WS=null;if(NET)netLeave(T2('Соединение потеряно','Connection lost'))}};w.onmessage=e=>{try{netMsg(JSON.parse(e.data))}catch(x){}}}catch(x){if(bad)bad()}}
 function netMsg(m){
  if(m.t==='rooms'){MPL=m.list;mpRender();return}
  if(m.t==='err'){NET=null;mpMenu(m.e);return}
@@ -577,12 +578,12 @@ function netMsg(m){
  if(NET&&NET.role==='host')hostMsg(m);else if(NET&&NET.role==='client')clientMsg(m)}
 function playMenu(){ov(`<h2>${T2('Играть','Play')}</h2><button id='pm1' style='padding:18px 14px;font-size:18px'>${T2('Одиночная игра','Singleplayer')}</button><button id='pm2' style='padding:18px 14px;font-size:18px'>${T2('Мультиплеер','Multiplayer')}</button><button id='pm3'>${T2('Назад','Back')}</button>`);
  $('pm1').onclick=()=>{PF.tut?setup():tutAsk()};$('pm2').onclick=()=>mpMenu();$('pm3').onclick=menuNew2}
-function mpMenu(err){clearInterval(MPT);MPL=[];
- ov(`<h2>${T2('Мультиплеер','Multiplayer')}</h2><div id='mpe' style='color:#ff7a5a;min-height:16px'>${err||''}</div><div style='display:flex;gap:10px;width:100%;max-width:720px;align-items:stretch'><div style='flex:1;display:flex;flex-direction:column;gap:6px'><div>${T2('Официальные серверы','Official servers')}</div><div id='mpo' class='g1'></div></div><div style='flex:1;display:flex;flex-direction:column;gap:6px;min-height:200px'><div>${T2('Серверы сообщества','Community servers')}</div><div id='mpc' class='g1' style='flex:1'></div><button id='mpnew' style='align-self:flex-end;width:auto;padding:8px 16px'>${T2('Создать','Create')}</button></div></div><div style='display:flex;gap:6px;align-items:center;width:100%;max-width:720px'><input id='mpurl' value='${PF.srv||''}' placeholder='wss://...' style='flex:1;font:inherit;font-size:13px;padding:6px;background:#1c1f16;color:#ffb000;border:2px solid #ffb000'><input id='mpnm' value='${mpName()}' maxlength='16' style='width:120px;font:inherit;font-size:13px;padding:6px;background:#1c1f16;color:#ffb000;border:2px solid #ffb000'><button id='mpsv' style='width:auto;padding:6px 12px'>OK</button></div><button id='mpb'>${T2('Назад','Back')}</button>`);
- $('mpb').onclick=playMenu;$('mpnew').onclick=mpCreate;$('mpsv').onclick=()=>{PF.srv=$('mpurl').value.trim();PF.name=$('mpnm').value.replace(/[<>"']/g,'').trim()||mpName();save();mpMenu()};
+function mpMenu(err,tries){tries=tries||0;clearInterval(MPT);MPL=[];const inp="font:inherit;font-size:13px;padding:6px;background:#1c1f16;color:#ffb000;border:2px solid #ffb000";
+ ov(`<h2>${T2('Мультиплеер','Multiplayer')}</h2><div id='mpe' style='color:#ffcf6b;min-height:16px'>${err||T2('Подключение…','Connecting…')}</div><div style='display:flex;gap:10px;width:100%;max-width:720px;align-items:stretch'><div style='flex:1;display:flex;flex-direction:column;gap:6px'><div>${T2('Официальные серверы','Official servers')}</div><div id='mpo' class='g1'></div></div><div style='flex:1;display:flex;flex-direction:column;gap:6px;min-height:200px'><div>${T2('Серверы сообщества','Community servers')}</div><div id='mpc' class='g1' style='flex:1'></div><button id='mpnew' style='align-self:flex-end;width:auto;padding:8px 16px'>${T2('Создать','Create')}</button></div></div><div style='display:flex;gap:6px;align-items:center;width:100%;max-width:720px'><span>${T2('Ник','Name')}</span><input id='mpnm' value='${mpName()}' maxlength='16' style='flex:1;${inp}'><button id='mpsv' style='width:auto;padding:6px 12px'>OK</button><button id='mpg' style='width:auto;padding:6px 10px'>⚙</button></div><div id='mpad' style='display:none;width:100%;max-width:720px'><input id='mpurl' value='${PF.srv||DEF_SRV}' style='width:100%;box-sizing:border-box;${inp}'></div><button id='mpb'>${T2('Назад','Back')}</button>`);
+ $('mpb').onclick=playMenu;$('mpnew').onclick=mpCreate;$('mpg').onclick=()=>{const a=$('mpad');a.style.display=a.style.display==='none'?'block':'none'};
+ $('mpsv').onclick=()=>{PF.srv=$('mpurl').value.trim()||DEF_SRV;PF.name=$('mpnm').value.replace(/[<>"']/g,'').trim()||mpName();save();WS&&WS.close();WS=null;mpMenu()};
  mpRender();
- if(!PF.srv){$('mpe').textContent=T2('Укажите адрес сервера внизу','Enter the server address below');return}
- mpOpen(()=>{netSend({t:'list'});MPT=setInterval(()=>{if(document.getElementById('mpo'))netSend({t:'list'});else clearInterval(MPT)},3000)},()=>{const e=document.getElementById('mpe');if(e)e.textContent=T2('Нет связи с сервером','Cannot reach the server')})}
+ mpOpen(()=>{const e=document.getElementById('mpe');if(e&&(tries>0||!err))e.textContent='';netSend({t:'list'});MPT=setInterval(()=>{if(document.getElementById('mpo'))netSend({t:'list'});else clearInterval(MPT)},3000)},()=>{const e=document.getElementById('mpe');if(!e)return;if(tries<14){e.textContent=T2('Сервер просыпается, подождите…','Server is waking up, please wait…');setTimeout(()=>{if(document.getElementById('mpo')&&!(WS&&WS.readyState===1))mpMenu(T2('Сервер просыпается, подождите…','Server is waking up, please wait…'),tries+1)},4000)}else e.textContent=T2('Нет связи с сервером','Cannot reach the server')})}
 function mpRender(){const o=document.getElementById('mpo'),c=document.getElementById('mpc');if(!o||!c)return;
  const row=r=>`<button data-r='${r.id}'><b>${tr(r.name)}</b><br>${r.n}/${r.max} · ${tr((MAPS[r.map]||{n:r.map}).n)} · ${tr((MODES[r.mode]||[r.mode])[0])}</button>`;
  const off=MPL.filter(r=>r.off),com=MPL.filter(r=>!r.off);
@@ -595,7 +596,7 @@ function mpCreate(){const bt=(attr,key,list,lab)=>Object.keys(list).map(k=>`<but
  const keep=()=>{CRF.name=$('cn').value.replace(/[<>"']/g,'')};
  [['cm','map'],['cmo','mode'],['cd','df']].forEach(([a,k])=>document.querySelectorAll('.g [data-'+a+']').forEach(b=>b.onclick=()=>{keep();CRF[k]=b.dataset[a];mpCreate()}));
  $('cb').onclick=()=>{keep();CRF.bots=!CRF.bots;mpCreate()};$('cbk').onclick=()=>{keep();mpMenu()};
- $('cgo').onclick=()=>{keep();if(!PF.srv){mpMenu();return}mpOpen(()=>{NET={role:'pending',cfg:{name:CRF.name||(mpName()+T2(' — сервер',"'s server")),map:CRF.map,mode:CRF.mode,df:CRF.df,bots:CRF.bots,max:8}};netSend({t:'create',cfg:NET.cfg})},()=>mpMenu(T2('Нет связи с сервером','Cannot reach the server')))}}
+ $('cgo').onclick=()=>{keep();mpOpen(()=>{NET={role:'pending',cfg:{name:CRF.name||(mpName()+T2(' — сервер',"'s server")),map:CRF.map,mode:CRF.mode,df:CRF.df,bots:CRF.bots,max:8}};netSend({t:'create',cfg:NET.cfg})},()=>mpMenu(T2('Нет связи с сервером','Cannot reach the server')))}}
 function netLeave(why){clearInterval(MPT);const w=WS;WS=null;try{w&&w.close()}catch(e){}const was=NET;NET=null;NC=false;ts.forEach(t=>sc.remove(t.mesh.root));ts=[];sh=[];bars.innerHTML='';
  if(was&&was.sm)was.sm.forEach(o=>sc.remove(o.m));if(was&&was.bm)for(const k in was.bm)sc.remove(was.bm[k]);BLD.splice(0).forEach(b=>sc.remove(b.g));MODE='std';st='menu';loadMap(PF.map);why?mpMenu(why):menuNew2()}
 /* ---- host ---- */
@@ -621,7 +622,7 @@ function netCtl(t,dt){const n=t.inp||{};if(t.hp<=0)return;const ix=n.x||0,iy=n.y
  move(t,fx*-iy+-Math.cos(c)*ix,fz*-iy+Math.sin(c)*ix,dt,t.sp*m);t.a+=cl(nd(c-t.a),-6*dt,6*dt);
  if(t.mo){const r=cl(n.r||45,15,85);t.tg={x:t.x+Math.sin(t.a)*r,z:t.z+Math.cos(t.a)*r}}
  if(n.f&&Math.abs(nd(c-t.a))<.12)fire(t)}
-function netHostTick(){if(!NET||NET.role!=='host'||st==='menu')return;const n=performance.now();if(n-NET.last<66)return;NET.last=n;
+function netHostTick(){if(!NET||NET.role!=='host'||st==='menu')return;const n=performance.now();if(n-NET.last<(HL?45:60))return;NET.last=n;
  const tk=[];ts.forEach((t,i)=>{if(HL&&i===0)return;tk.push([i,t.t,t.tid,t.lv||1,+t.x.toFixed(1),+t.z.toFixed(1),+t.h.toFixed(2),+t.a.toFixed(2),Math.max(0,Math.round(t.hp)),t.m,t.net!=null?t.net:(t.p?0:-1),t.pn||'',t.kills||0,t.rp||0,t.sup||0])});
  netSend({t:'snap',k:++NET.sn,sc:score,cv:+capVal.toFixed(2),cp:[CP.x,CP.z],tk,sh:sh.map(s=>[+s.x.toFixed(1),+s.z.toFixed(1),s.arc?0:Math.round(s.vx),s.arc?0:Math.round(s.vz),s.arc?+(2.5+Math.sin(Math.min(1,s.age/s.T)*PI)*26).toFixed(1):1.6]),bl:BLD.map(b=>[+b.rect[0].toFixed(1),+b.rect[1].toFixed(1),b.rect[2],b.rect[3],b.tur?1:0,b.t]),pr:PROPS.map(p=>p.dead?1:0).join(''),ev:EV.splice(0)})}
 function netEnd(win,fin){const al=ts.find(t=>t.hp>0);let txt=MODE==='ffa'?(al?T2('Победитель: ','Winner: ')+(al.pn||'?'):T2('Ничья','Draw')):(win?T2('Раунд за КТ','Round to CT'):T2('Раунд за Т','Round to T'));if(fin)txt=T2('Матч окончен. ','Match over. ')+txt;
